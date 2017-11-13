@@ -87,6 +87,6 @@ MonoBehaviour:
   maxMass: 40
   minDistanceBetweenPlanetsSurfaces: 3
   orbitalSpeed: 1
-  maxEccentricity: 0.8
+  maxEccentricity: 0.75
   planetarySystemFolderName: PlanetarySystem
   bodiesFolderName: Bodies
