@@ -55,8 +55,8 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             float[] orbitalSpeeds = new float[bodyCount];
             float[] orbitTilts = new float[bodyCount];
             float[] eccentricities = new float[bodyCount];
+            Vector2[] centers = new Vector2[bodyCount];
             float[] weights = new float[bodies.Length];
-            float[] maxOrbitRadii = new float[bodies.Length];
             
             // Find masses and center of mass
             float totalWeights = 0;
@@ -68,8 +68,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 masses[i] = Random.Range(minMass, maxMass);
                 weights[i] = masses[i];
                 totalWeights += weights[i];
-                
-                maxOrbitRadii[i] = Mathf.Min(worldSize.x, worldSize.y) * 0.5f - bodies[i].radius;
             }
 
             // Find positions
@@ -85,7 +83,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                     positions[i] = new Vector2(Random.insideUnitCircle.x * ((worldSize.x * 0.5f) - bodies[i].radius), Random.insideUnitCircle.y * ((worldSize.y * 0.5f) - bodies[i].radius));
                     
                     barycenter += positions[i];
-                    centerOfMass += positions[i] * weights[i]; // Mass weight affects the barycenter position and increase the effect of mass on the barycenter position
+                    centerOfMass += positions[i] * weights[i]; // Mass weight affects the center of mass
                 }
                 barycenter /= bodies.Length;
                 centerOfMass /= totalWeights;
@@ -124,12 +122,18 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 positions[i] -= barycenter; // Center planets on the barycenter to have them on screen
                 orbitalSpeeds[i] = orbitalSpeed;
                 eccentricities[i] = Random.Range(0, maxEccentricity);
-                centerOfMass = positions[i] - (positions[i] - centerOfMass).normalized * ((positions[i] - centerOfMass).magnitude / (1 + eccentricities[i]));
+                centers[i] = positions[i] - (positions[i] - centerOfMass).normalized * ((positions[i] - centerOfMass).magnitude / (1 + eccentricities[i])); // The foci are shared and placed on the center of mass of the system
 
-                bodies[i].init(positions[i], masses[i], orbitalSpeeds[i], eccentricities[i], orbitTilts[i], centerOfMass);
+                bodies[i].init(positions[i], masses[i], orbitalSpeeds[i], eccentricities[i], orbitTilts[i], centers[i]);
             }
 
             return bodies;
+        }
+
+        void OnDrawGizmos()
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawSphere(centerOfMass, 0.25f);
         }
 
         void Update()

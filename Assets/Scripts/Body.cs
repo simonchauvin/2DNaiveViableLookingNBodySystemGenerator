@@ -11,7 +11,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         private float orbitalSpeed;
         private float eccentricity;
         public float radius { get; protected set; }
-        private Vector2 centerOfMass;
+        private Vector2 ellipseCenter;
         private Vector2[] foci;
         public float apsidesRadius { get; private set; } // Max distance possible between the barycenter and the body
         private float orbitTilt;
@@ -25,7 +25,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             radius = GetComponent<SpriteRenderer>().bounds.extents.x;
         }
 
-        public virtual void init(Vector2 position, float mass, float orbitalSpeed, float eccentricity, float orbitTilt, Vector2 centerOfMass)
+        public virtual void init(Vector2 position, float mass, float orbitalSpeed, float eccentricity, float orbitTilt, Vector2 ellipseCenter)
         {
             // Init
             transform.position = position;
@@ -33,9 +33,9 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             this.orbitalSpeed = orbitalSpeed;
             this.eccentricity = eccentricity;
             this.orbitTilt = orbitTilt;
-            this.centerOfMass = centerOfMass;
+            this.ellipseCenter = ellipseCenter;
             angle = 0;
-            apsidesRadius = ((Vector3)centerOfMass - transform.position).magnitude;
+            apsidesRadius = (ellipseCenter - position).magnitude;
 
             // Find relative foci points
             foci = new Vector2[] { Vector2.zero, Vector2.zero };
@@ -60,15 +60,12 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         {
             Gizmos.color = new Color(gizmosColor.r, gizmosColor.g, gizmosColor.b, 0.5f);
 
-            // Draw actual center of mass
-            //Gizmos.DrawSphere(barycenter, 0.25f);
-
             // Draw point around which the body rotates
-            Gizmos.DrawSphere(centerOfMass, 0.25f);
+            Gizmos.DrawSphere(ellipseCenter, 0.25f);
 
             // Draw foci
-            Gizmos.DrawSphere(centerOfMass + foci[0], 0.1f);
-            Gizmos.DrawSphere(centerOfMass + foci[1], 0.1f);
+            Gizmos.DrawSphere(ellipseCenter + foci[0], 0.1f);
+            Gizmos.DrawSphere(ellipseCenter + foci[1], 0.1f);
 
             // Draw fixed orbit
             float lastAngle = 0;
@@ -93,7 +90,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
         public Vector2 computeFixedOrbitPosition(float angle)
         {
-            return (Vector3)centerOfMass + apsidesRadius * (Quaternion.Euler(0, 0, orbitTilt) * computeFixedOrbitVelocity(angle));
+            return (Vector3)ellipseCenter + apsidesRadius * (Quaternion.Euler(0, 0, orbitTilt) * computeFixedOrbitVelocity(angle));
         }
 
         public void updateFixedOrbitPosition()
