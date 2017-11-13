@@ -72,7 +72,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
             // Find positions
             bool apart = true;
-            Vector2 barycenter = new Vector2(0, 0);
+            Vector2 barycenter = new Vector2(0, 0); // Different than the center of mass because it does not account for the bodies mass
             do
             {
                 // Find positions and center of mass
@@ -82,7 +82,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 {
                     positions[i] = new Vector2(Random.insideUnitCircle.x * ((worldSize.x * 0.5f) - bodies[i].radius), Random.insideUnitCircle.y * ((worldSize.y * 0.5f) - bodies[i].radius));
                     
-                    barycenter += positions[i];
+                    barycenter += positions[i]; // Non weighted barycenter
                     centerOfMass += positions[i] * weights[i]; // Mass weight affects the center of mass
                 }
                 barycenter /= bodies.Length;
@@ -114,12 +114,12 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                     }
                 }
             } while (!apart);
-            centerOfMass -= barycenter; // Center barycenter to the non weighted one
+            centerOfMass -= barycenter; // Shift the center of mass to center the planets in the middle of the screen
 
             // Init bodies
             for (int i = 0; i < bodies.Length; i++)
             {
-                positions[i] -= barycenter; // Center planets on the barycenter to have them on screen
+                positions[i] -= barycenter; // Center planets on the screen
                 orbitalSpeeds[i] = orbitalSpeed;
                 eccentricities[i] = Random.Range(0, maxEccentricity);
                 centers[i] = positions[i] - (positions[i] - centerOfMass).normalized * ((positions[i] - centerOfMass).magnitude / (1 + eccentricities[i])); // The foci are shared and placed on the center of mass of the system
