@@ -130,12 +130,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             return bodies;
         }
 
-        void OnDrawGizmos()
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawSphere(centerOfMass, 0.25f);
-        }
-
         void Update()
         {
 
