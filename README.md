@@ -21,6 +21,3 @@ It is a 2D planetary system generator but adding the 3rd dimension should not be
 - Distribute the N bodies on the screen (all bodies are at the apoapsis).
 - Find the center of mass of the system formed by the N bodies.
 - Generate an elliptical orbit for each body.
-
-# Issues
-- Planets can crash into each other.
