@@ -50,17 +50,16 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         {
             // Init arrays
             Body[] bodies = new Body[bodyCount];
-            Vector2[] positions = new Vector2[bodies.Length];
+            Vector2[] positions = new Vector2[bodyCount];
             float[] masses = new float[bodyCount];
-            float[] orbitalSpeeds = new float[bodyCount];
             float[] orbitTilts = new float[bodyCount];
-            float[] eccentricities = new float[bodyCount];
-            Vector2[] centers = new Vector2[bodyCount];
             float[] weights = new float[bodies.Length];
+            float greatestMass = 0;
+            int greatestMassBodyIndex = 0;
             
             // Find masses and center of mass
             float totalWeights = 0;
-            for (int i = 0; i < bodies.Length; i++)
+            for (int i = 0; i < bodyCount; i++)
             {
                 Transform tsfm = Instantiate(planetPrefab, Vector3.zero, Quaternion.identity, bodiesFolder);
                 bodies[i] = tsfm.GetComponentInChildren<Body>();
@@ -68,44 +67,37 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 masses[i] = Random.Range(minMass, maxMass);
                 weights[i] = masses[i];
                 totalWeights += weights[i];
+
+                if (masses[i] > greatestMass)
+                {
+                    greatestMass = masses[i];
+                    greatestMassBodyIndex = i;
+                }
             }
 
-            // Find positions
+            // Find valid positions
             bool apart = true;
-            Vector2 barycenter = new Vector2(0, 0); // Different than the center of mass because it does not account for the bodies mass
+            Vector2 barycenter = new Vector2(0, 0); // Different than the center of mass because it does not account for the bodies masses
             do
             {
-                // Find positions and center of mass
+                // Randomize positions and compute center of mass
                 centerOfMass = new Vector3(0, 0, 0);
                 barycenter = new Vector2(0, 0);
-                for (int i = 0; i < bodies.Length; i++)
+                for (int i = 0; i < bodyCount; i++)
                 {
                     positions[i] = new Vector2(Random.insideUnitCircle.x * ((worldSize.x * 0.5f) - bodies[i].radius), Random.insideUnitCircle.y * ((worldSize.y * 0.5f) - bodies[i].radius));
                     
                     barycenter += positions[i]; // Non weighted barycenter
                     centerOfMass += positions[i] * weights[i]; // Mass weight affects the center of mass
                 }
-                barycenter /= bodies.Length;
+                barycenter /= bodyCount;
                 centerOfMass /= totalWeights;
 
-                // Rotate orbit to match the apsides line
-                for (int i = 0; i < bodies.Length; i++)
-                {
-                    if (positions[i].y < centerOfMass.y)
-                    {
-                        orbitTilts[i] = -Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
-                    }
-                    else
-                    {
-                        orbitTilts[i] = Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
-                    }
-                }
-
-                // Check that planets are apart from each other
+                // Check that planets are not too close to each other
                 apart = true;
-                for (int i = 0; i < bodies.Length; i++)
+                for (int i = 0; i < bodyCount; i++)
                 {
-                    for (int j = i + 1; j < bodies.Length; j++)
+                    for (int j = i + 1; j < bodyCount; j++)
                     {
                         if ((positions[i] - positions[j]).magnitude - (bodies[i].radius + bodies[j].radius) < minDistanceBetweenPlanetsSurfaces)
                         {
@@ -114,17 +106,52 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                     }
                 }
             } while (!apart);
-            centerOfMass -= barycenter; // Shift the center of mass to center the planets in the middle of the screen
 
-            // Init bodies
-            for (int i = 0; i < bodies.Length; i++)
+            // Rotate orbit to match the apsides line
+            for (int i = 0; i < bodyCount; i++)
             {
-                positions[i] -= barycenter; // Center planets on the screen
-                orbitalSpeeds[i] = orbitalSpeed;
-                eccentricities[i] = Random.Range(0, maxEccentricity);
-                centers[i] = positions[i] - (positions[i] - centerOfMass).normalized * ((positions[i] - centerOfMass).magnitude / (1 + eccentricities[i])); // The foci are shared and placed on the center of mass of the system
+                if (positions[i].y < centerOfMass.y)
+                {
+                    orbitTilts[i] = -Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
+                }
+                else
+                {
+                    orbitTilts[i] = Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
+                }
+            }
 
-                bodies[i].init(positions[i], masses[i], orbitalSpeeds[i], eccentricities[i], orbitTilts[i], centers[i]);
+            // Shift the center of mass to center the planets in the middle of the screen
+            centerOfMass -= barycenter;
+
+            // Final configurations
+            Vector2 apsidesLine = Vector2.zero, center = Vector2.zero;
+            float eccentricity = 0, newMaxEccentricity = 0;
+            for (int i = 0; i < bodyCount; i++)
+            {
+                // Center planets on the screen
+                positions[i] -= barycenter;
+
+                apsidesLine = positions[i] - centerOfMass;
+
+                // Cap eccentricity to prevent bodies from crashing into each other
+                newMaxEccentricity = maxEccentricity;
+                if (i != greatestMassBodyIndex)
+                {
+                    float semiMajorAxis = apsidesLine.magnitude,
+                        minPeriapsis = bodies[i].radius + bodies[greatestMassBodyIndex].radius,
+                        max = 1f - (1f - (minPeriapsis / semiMajorAxis));
+                    if (max < maxEccentricity)
+                    {
+                        newMaxEccentricity = max;
+                    }
+                }
+                eccentricity = Random.Range(0, newMaxEccentricity);
+
+                // Shift the ellipse center so that the foci are shared at the center of mass of the system
+                center = positions[i] - apsidesLine.normalized * (apsidesLine.magnitude / (1 + eccentricity));
+
+                // Init body
+                bodies[i].init(positions[i], masses[i], orbitalSpeed, eccentricity, orbitTilts[i], center);
             }
 
             return bodies;

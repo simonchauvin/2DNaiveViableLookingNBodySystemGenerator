@@ -13,7 +13,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         public float radius { get; protected set; }
         private Vector2 ellipseCenter;
         private Vector2[] foci;
-        public float apsidesRadius { get; private set; } // Max distance possible between the barycenter and the body
+        public float apsidesRadius { get; private set; } // Max distance possible from the ellipse center
         private float orbitTilt;
         private float angle;
         private Color gizmosColor;
