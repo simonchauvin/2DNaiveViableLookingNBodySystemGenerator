@@ -82,7 +82,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   planetPrefab: {fileID: 4949767513225046, guid: 6ae76c312ad7c9d45b47b368437f7a7b,
     type: 2}
-  bodyCount: 2
+  bodyCount: 5
   minMass: 2
   maxMass: 40
   minDistanceBetweenPlanetsSurfaces: 3
