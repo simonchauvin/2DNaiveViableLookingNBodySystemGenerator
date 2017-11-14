@@ -54,8 +54,8 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             float[] masses = new float[bodyCount];
             float[] orbitTilts = new float[bodyCount];
             float[] weights = new float[bodies.Length];
-            float greatestMass = 0;
-            int greatestMassBodyIndex = 0;
+            float closestDistanceToCenterOfMass = Mathf.Max(worldSize.x, worldSize.y);
+            int closestBodyToCenterOfMassIndex = 0;
             
             // Find masses and center of mass
             float totalWeights = 0;
@@ -67,12 +67,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 masses[i] = Random.Range(minMass, maxMass);
                 weights[i] = masses[i];
                 totalWeights += weights[i];
-
-                if (masses[i] > greatestMass)
-                {
-                    greatestMass = masses[i];
-                    greatestMassBodyIndex = i;
-                }
             }
 
             // Find valid positions
@@ -120,6 +114,16 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 }
             }
 
+            // Find closest body to center of mass
+            for (int i = 0; i < bodyCount; i++)
+            {
+                if ((positions[i] - centerOfMass).magnitude < closestDistanceToCenterOfMass)
+                {
+                    closestDistanceToCenterOfMass = (positions[i] - centerOfMass).magnitude;
+                    closestBodyToCenterOfMassIndex = i;
+                }
+            }
+
             // Shift the center of mass to center the planets in the middle of the screen
             centerOfMass -= barycenter;
 
@@ -135,10 +139,10 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
                 // Cap eccentricity to prevent bodies from crashing into each other
                 newMaxEccentricity = maxEccentricity;
-                if (i != greatestMassBodyIndex)
+                if (i != closestBodyToCenterOfMassIndex)
                 {
                     float semiMajorAxis = apsidesLine.magnitude,
-                        minPeriapsis = bodies[i].radius + bodies[greatestMassBodyIndex].radius,
+                        minPeriapsis = bodies[i].radius + bodies[closestBodyToCenterOfMassIndex].radius,
                         max = 1f - (1f - (minPeriapsis / semiMajorAxis));
                     if (max < maxEccentricity)
                     {
