@@ -7,8 +7,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
     {
         #region GENERATION_SETTINGS
         public Transform planetPrefab;
-        [Range(1, 8)]
-        public int bodyCount = 2;
         public float minMass = 2;
         public float maxMass = 40;
         public float minDistanceBetweenPlanetsSurfaces = 3;
@@ -29,7 +27,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
         #region VARIABLES
         private Vector2 worldSize;
-        private Vector2[] worldBounds;
         private Vector2 centerOfMass;
         #endregion
 
@@ -39,15 +36,12 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             mainCam = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<Camera>();
             planetarySystemFolder = GameObject.Find(planetarySystemFolderName).transform;
             bodiesFolder = GameObject.Find(bodiesFolderName).transform;
-
-            worldBounds = new Vector2[2];
-            worldBounds[0] = mainCam.ScreenToWorldPoint(new Vector2(0, 0));
-            worldBounds[1] = mainCam.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));
-            worldSize = new Vector2(worldBounds[1].x - worldBounds[0].x, worldBounds[1].y - worldBounds[0].y);
         }
 
-        public Body[] generate()
+        public Body[] generate(int bodyCount)
         {
+            worldSize = GameManager.instance.worldSize;
+
             // Init arrays
             Body[] bodies = new Body[bodyCount];
             Vector2[] positions = new Vector2[bodyCount];
