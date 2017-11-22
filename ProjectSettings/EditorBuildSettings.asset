@@ -4,4 +4,7 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/NaiveViableLookingNBody2DSystemGenerator.unity
+    guid: 4c4153700521c0841a481fc345ca0159
