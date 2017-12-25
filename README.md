@@ -25,3 +25,4 @@ It is a 2D planetary system generator but adding the 3rd dimension should not be
 - Distribute the n bodies on the screen (all bodies are at the apoapsis).
 - Find the center of mass of the system formed by the n bodies.
 - Generate an elliptical orbit for each body.
+- Move each ellipse's center so that all foci are at the center of mass of the system.
