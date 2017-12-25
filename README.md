@@ -3,7 +3,7 @@ A 2D n-body system generator that looks and feels viable.
 
 It was made with Unity 2017.
 You can import the files directly into an existing Unity project.
-Lauch the scene to test it out.
+Launch the scene to test it out.
 
 ## Naive
 This generator is based on the idea that the center of mass of a two-body system is at a shared focus point of the two bodies.
