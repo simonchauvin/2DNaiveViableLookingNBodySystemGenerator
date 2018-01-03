@@ -1,6 +1,10 @@
 # NaiveViableLookingNBody2DSystemGenerator
 A 2D n-body system generator that looks and feels viable.
 
+It was made with Unity 2017.
+You can import the files directly into an existing Unity project.
+Launch the scene to test it out.
+
 ## Naive
 This generator is based on the idea that the center of mass of a two-body system is at a shared focus point of the two bodies.
 An ellipse is made of a center, two foci and an eccentricy that is responsible for the flatness of the ellipse and the positions of the foci. An elliptical orbit means that one of the foci is actually the center of mass of the orbit. And in a two-body system, the bodies share one of their foci, which is placed at the center of mass of the system.
@@ -21,3 +25,4 @@ It is a 2D planetary system generator but adding the 3rd dimension should not be
 - Distribute the n bodies on the screen (all bodies are at the apoapsis).
 - Find the center of mass of the system formed by the n bodies.
 - Generate an elliptical orbit for each body.
+- Move each ellipse's center so that all foci are at the center of mass of the system.
