@@ -80,13 +80,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fbe9f94c7dceb7b4ca703649c87917db, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  planetPrefab: {fileID: 4949767513225046, guid: 6ae76c312ad7c9d45b47b368437f7a7b,
-    type: 2}
-  bodyCount: 3
   minMass: 2
   maxMass: 40
   minDistanceBetweenPlanetsSurfaces: 3
   orbitalSpeed: 1
   maxEccentricity: 0.75
-  planetarySystemFolderName: PlanetarySystem
-  bodiesFolderName: Bodies

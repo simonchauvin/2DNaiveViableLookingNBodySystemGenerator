@@ -20,8 +20,13 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
         }
 
+        public Transform bodyPrefab;
+        public string planetsFolderName = "Planets";
+
+        private Transform planetsFolder;
         private NBodySystemGenerator generator;
-        private Body[] planets;
+        private Body[] bodies;
+        private BodyData[] bodiesData;
         private Camera mainCam;
         private Canvas canvas;
 
@@ -57,25 +62,38 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         {
             if (simulating)
             {
-                for (int i = 0; i < planets.Length; i++)
+                for (int i = 0; i < bodies.Length; i++)
                 {
-                    planets[i].updateFixedOrbitPosition();
+                    bodies[i].updateFixedOrbitPosition();
                 }
             }
             else if (generating)
             {
-                if (planets != null)
+                if (bodies != null)
                 {
-                    for (int i = 0; i < planets.Length; i++)
+                    for (int i = 0; i < bodies.Length; i++)
                     {
-                        if (planets[i] != null)
+                        if (bodies[i] != null)
                         {
-                            Destroy(planets[i].gameObject);
+                            Destroy(bodies[i].gameObject);
                         }
                     }
                 }
 
-                planets = generator.generate(bodyCount);
+                bodies = new Body[bodyCount];
+                float[] bodiesRadii = new float[bodyCount];
+                for (int i = 0; i < bodyCount; i++)
+                {
+                    bodies[i] = Instantiate(bodyPrefab, Vector3.zero, Quaternion.identity, planetsFolder).GetComponentInChildren<Body>();
+                    bodiesRadii[i] = bodies[i].radius;
+                }
+
+                bodiesData = generator.generate(bodiesRadii, worldSize, bodyCount);
+                for (int i = 0; i < bodyCount; i++)
+                {
+                    
+                    bodies[i].init(bodiesData[i].position, bodiesData[i].mass, bodiesData[i].orbitalSpeed, bodiesData[i].eccentricity, bodiesData[i].orbitTilt, bodiesData[i].ellipseCenter);
+                }
                 generating = false;
             }
 
@@ -141,7 +159,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
         public void simulate()
         {
-            if (planets != null)
+            if (bodies != null)
             {
                 simulating = !simulating;
             }

@@ -6,48 +6,31 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
     public class NBodySystemGenerator : MonoBehaviour
     {
         #region GENERATION_SETTINGS
-        public Transform planetPrefab;
         public float minMass = 2;
         public float maxMass = 40;
         public float minDistanceBetweenPlanetsSurfaces = 3;
-        public float orbitalSpeed = 1f;
+        public float orbitalSpeed = 0.5f;
         public float maxEccentricity = 0.75f;
         #endregion
 
-        #region GENERAL_SETTINGS
-        public string planetarySystemFolderName = "PlanetarySystem";
-        public string bodiesFolderName = "Bodies";
-        #endregion
-
-        #region OBJECTS
-        private Camera mainCam;
-        private Transform planetarySystemFolder;
-        private Transform bodiesFolder;
-        #endregion
-
         #region VARIABLES
-        private Vector2 worldSize;
-        private Vector2 centerOfMass;
+        public Vector2 centerOfMass { get; private set; }
         #endregion
 
 
         void Awake()
         {
-            mainCam = GameObject.FindGameObjectWithTag("MainCamera").GetComponent<Camera>();
-            planetarySystemFolder = GameObject.Find(planetarySystemFolderName).transform;
-            bodiesFolder = GameObject.Find(bodiesFolderName).transform;
+            
         }
 
-        public Body[] generate(int bodyCount)
+        public BodyData[] generate(float[] bodiesRadii, Vector2 worldSize, int bodyCount)
         {
-            worldSize = GameManager.instance.worldSize;
-
             // Init arrays
-            Body[] bodies = new Body[bodyCount];
+            BodyData[] bodies = new BodyData[bodyCount];
             Vector2[] positions = new Vector2[bodyCount];
             float[] masses = new float[bodyCount];
             float[] orbitTilts = new float[bodyCount];
-            float[] weights = new float[bodies.Length];
+            float[] weights = new float[bodyCount];
             float closestDistanceToCenterOfMass = Mathf.Max(worldSize.x, worldSize.y);
             int closestBodyToCenterOfMassIndex = 0;
             
@@ -55,9 +38,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             float totalWeights = 0;
             for (int i = 0; i < bodyCount; i++)
             {
-                Transform tsfm = Instantiate(planetPrefab, Vector3.zero, Quaternion.identity, bodiesFolder);
-                bodies[i] = tsfm.GetComponentInChildren<Body>();
-
                 masses[i] = Random.Range(minMass, maxMass);
                 weights[i] = masses[i];
                 totalWeights += weights[i];
@@ -73,7 +53,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 barycenter = new Vector2(0, 0);
                 for (int i = 0; i < bodyCount; i++)
                 {
-                    positions[i] = new Vector2(Random.insideUnitCircle.x * ((worldSize.x * 0.5f) - bodies[i].radius), Random.insideUnitCircle.y * ((worldSize.y * 0.5f) - bodies[i].radius));
+                    positions[i] = new Vector2(Random.insideUnitCircle.x * ((worldSize.x * 0.5f) - bodiesRadii[i]), Random.insideUnitCircle.y * ((worldSize.y * 0.5f) - bodiesRadii[i]));
                     
                     barycenter += positions[i]; // Non weighted barycenter
                     centerOfMass += positions[i] * weights[i]; // Mass weight affects the center of mass
@@ -87,7 +67,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 {
                     for (int j = i + 1; j < bodyCount; j++)
                     {
-                        if ((positions[i] - positions[j]).magnitude - (bodies[i].radius + bodies[j].radius) < minDistanceBetweenPlanetsSurfaces)
+                        if ((positions[i] - positions[j]).magnitude - (bodiesRadii[i] + bodiesRadii[i]) < minDistanceBetweenPlanetsSurfaces)
                         {
                             apart = false;
                         }
@@ -136,7 +116,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 if (i != closestBodyToCenterOfMassIndex)
                 {
                     float semiMajorAxis = apsidesLine.magnitude,
-                        minPeriapsis = bodies[i].radius + bodies[closestBodyToCenterOfMassIndex].radius,
+                        minPeriapsis = bodiesRadii[i] + bodiesRadii[closestBodyToCenterOfMassIndex],
                         max = 1f - (1f - (minPeriapsis / semiMajorAxis));
                     if (max < maxEccentricity)
                     {
@@ -149,7 +129,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 center = positions[i] - apsidesLine.normalized * (apsidesLine.magnitude / (1 + eccentricity));
 
                 // Init body
-                bodies[i].init(positions[i], masses[i], orbitalSpeed, eccentricity, orbitTilts[i], center);
+                bodies[i] = new BodyData(positions[i], masses[i], orbitalSpeed, eccentricity, orbitTilts[i], center);
             }
 
             return bodies;
