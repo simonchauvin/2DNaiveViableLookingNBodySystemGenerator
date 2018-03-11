@@ -82,16 +82,19 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
                 bodies = new Body[bodyCount];
                 float[] bodiesRadii = new float[bodyCount];
+                bool[] staticPlanets = new bool[bodyCount];
+                bool[] fixedOrbitPlanets = new bool[bodyCount];
                 for (int i = 0; i < bodyCount; i++)
                 {
                     bodies[i] = Instantiate(bodyPrefab, Vector3.zero, Quaternion.identity, planetsFolder).GetComponentInChildren<Body>();
                     bodiesRadii[i] = bodies[i].radius;
+                    staticPlanets[i] = false;
+                    fixedOrbitPlanets[i] = true;
                 }
 
-                bodiesData = generator.generate(bodiesRadii, worldSize, bodyCount);
+                bodiesData = generator.generate(bodiesRadii, staticPlanets, fixedOrbitPlanets, worldSize, bodyCount);
                 for (int i = 0; i < bodyCount; i++)
                 {
-                    
                     bodies[i].init(bodiesData[i].position, bodiesData[i].mass, bodiesData[i].orbitalSpeed, bodiesData[i].eccentricity, bodiesData[i].orbitTilt, bodiesData[i].ellipseCenter);
                 }
                 generating = false;

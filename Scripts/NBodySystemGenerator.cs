@@ -23,11 +23,13 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             
         }
 
-        public BodyData[] generate(float[] bodiesRadii, Vector2 worldSize, int bodyCount)
+        public BodyData[] generate(float[] bodiesRadii, bool[] staticBodies, bool[] dynamicBodies, Vector2 worldSize, int bodyCount)
         {
             // Init arrays
             BodyData[] bodies = new BodyData[bodyCount];
             Vector2[] positions = new Vector2[bodyCount];
+            float[] eccentricities = new float[bodyCount];
+            Vector2[] centers = new Vector2[bodyCount];
             float[] masses = new float[bodyCount];
             float[] orbitTilts = new float[bodyCount];
             float[] weights = new float[bodyCount];
@@ -102,8 +104,8 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             centerOfMass -= barycenter;
 
             // Final configurations
-            Vector2 apsidesLine = Vector2.zero, center = Vector2.zero;
-            float eccentricity = 0, newMaxEccentricity = 0;
+            Vector2 apsidesLine = Vector2.zero;
+            float newMaxEccentricity = 0;
             for (int i = 0; i < bodyCount; i++)
             {
                 // Center planets on the screen
@@ -123,13 +125,22 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                         newMaxEccentricity = max;
                     }
                 }
-                eccentricity = Random.Range(0, newMaxEccentricity);
+                eccentricities[i] = Random.Range(0, newMaxEccentricity);
 
                 // Shift the ellipse center so that the foci are shared at the center of mass of the system
-                center = positions[i] - apsidesLine.normalized * (apsidesLine.magnitude / (1 + eccentricity));
+                centers[i] = positions[i] - apsidesLine.normalized * (apsidesLine.magnitude / (1 + eccentricities[i]));
+            }
+
+            // Adjust bodies properties to account for the static/dynamic distribution
+            for (int i = 0; i < bodyCount; i++)
+            {
+                if (i == closestBodyToCenterOfMassIndex)
+                {
+                    positions[i] = centers[i];
+                }
 
                 // Init body
-                bodies[i] = new BodyData(positions[i], masses[i], orbitalSpeed, eccentricity, orbitTilts[i], center);
+                bodies[i] = new BodyData(positions[i], masses[i], orbitalSpeed, eccentricities[i], orbitTilts[i], centers[i]);
             }
 
             return bodies;
