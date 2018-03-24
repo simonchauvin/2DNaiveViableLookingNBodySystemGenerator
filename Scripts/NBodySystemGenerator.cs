@@ -23,7 +23,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             
         }
 
-        public BodyData[] generate(float[] bodiesRadii, bool[] staticBodies, bool[] dynamicBodies, Vector2 worldSize, int bodyCount)
+        public BodyData[] generate(float[] bodiesRadii, bool oneIsStatic, Vector2 worldSize, int bodyCount)
         {
             // Init arrays
             BodyData[] bodies = new BodyData[bodyCount];
@@ -134,9 +134,12 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             // Adjust bodies properties to account for the static/dynamic distribution
             for (int i = 0; i < bodyCount; i++)
             {
-                if (i == closestBodyToCenterOfMassIndex)
+                if (oneIsStatic)
                 {
-                    positions[i] = centers[i];
+                    if (i == closestBodyToCenterOfMassIndex)
+                    {
+                        positions[i] = centers[i];
+                    }
                 }
 
                 // Init body

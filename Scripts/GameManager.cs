@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine.UI;
 using UnityEngine;
+using System;
 
 namespace NaiveViableLooking2DPlanetarySystemGenerator
 {
@@ -69,35 +70,8 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
             else if (generating)
             {
-                if (bodies != null)
-                {
-                    for (int i = 0; i < bodies.Length; i++)
-                    {
-                        if (bodies[i] != null)
-                        {
-                            Destroy(bodies[i].gameObject);
-                        }
-                    }
-                }
-
-                bodies = new Body[bodyCount];
-                float[] bodiesRadii = new float[bodyCount];
-                bool[] staticPlanets = new bool[bodyCount];
-                bool[] fixedOrbitPlanets = new bool[bodyCount];
-                for (int i = 0; i < bodyCount; i++)
-                {
-                    bodies[i] = Instantiate(bodyPrefab, Vector3.zero, Quaternion.identity, planetsFolder).GetComponentInChildren<Body>();
-                    bodiesRadii[i] = bodies[i].radius;
-                    staticPlanets[i] = false;
-                    fixedOrbitPlanets[i] = true;
-                }
-
-                bodiesData = generator.generate(bodiesRadii, staticPlanets, fixedOrbitPlanets, worldSize, bodyCount);
-                for (int i = 0; i < bodyCount; i++)
-                {
-                    bodies[i].init(bodiesData[i].position, bodiesData[i].mass, bodiesData[i].orbitalSpeed, bodiesData[i].eccentricity, bodiesData[i].orbitTilt, bodiesData[i].ellipseCenter);
-                }
-                generating = false;
+                removeOldBodies();
+                createNewBodies();
             }
 
             if (Input.GetKeyDown(KeyCode.Return))
@@ -152,6 +126,38 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             {
                 Application.Quit();
             }
+        }
+
+        private void removeOldBodies()
+        {
+            if (bodies != null)
+            {
+                for (int i = 0; i < bodies.Length; i++)
+                {
+                    if (bodies[i] != null)
+                    {
+                        Destroy(bodies[i].gameObject);
+                    }
+                }
+            }
+        }
+
+        private void createNewBodies()
+        {
+            bodies = new Body[bodyCount];
+            float[] bodiesRadii = new float[bodyCount];
+            for (int i = 0; i < bodyCount; i++)
+            {
+                bodies[i] = Instantiate(bodyPrefab, Vector3.zero, Quaternion.identity, planetsFolder).GetComponentInChildren<Body>();
+                bodiesRadii[i] = bodies[i].radius;
+            }
+
+            bodiesData = generator.generate(bodiesRadii, false, worldSize, bodyCount);
+            for (int i = 0; i < bodyCount; i++)
+            {
+                bodies[i].init(bodiesData[i].position, bodiesData[i].mass, bodiesData[i].orbitalSpeed, bodiesData[i].eccentricity, bodiesData[i].orbitTilt, bodiesData[i].ellipseCenter);
+            }
+            generating = false;
         }
 
         public void generate ()
