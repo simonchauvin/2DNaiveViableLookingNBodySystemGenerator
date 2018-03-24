@@ -38,6 +38,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         public float aspect { get; private set; }
         public float scale { get; private set; }
         public bool showOrbits { get; private set; }
+        private Material gizmosMat;
 
 
         void Awake()
@@ -50,13 +51,23 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             generating = false;
             simulating = false;
 
-            Vector2[] worldBounds = new Vector2[2];
-            worldBounds[0] = mainCam.ScreenToWorldPoint(new Vector2(0, 0));
-            worldBounds[1] = mainCam.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));
-            worldSize = new Vector2(worldBounds[1].x - worldBounds[0].x, worldBounds[1].y - worldBounds[0].y);
             aspect = mainCam.aspect;
             scale = 0;
             showOrbits = true;
+            findWorldSize();
+
+            // Unity has a built-in shader that is useful for drawing
+            // simple colored things.
+            Shader shader = Shader.Find("Hidden/Internal-Colored");
+            gizmosMat = new Material(shader);
+            gizmosMat.hideFlags = HideFlags.HideAndDontSave;
+            // Turn on alpha blending
+            gizmosMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            gizmosMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            // Turn backface culling off
+            gizmosMat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            // Turn off depth writes
+            gizmosMat.SetInt("_ZWrite", 0);
         }
 
         void Update()
@@ -70,6 +81,8 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
             else if (generating)
             {
+                findWorldSize();
+
                 removeOldBodies();
                 createNewBodies();
             }
@@ -128,6 +141,14 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
         }
 
+        private void findWorldSize()
+        {
+            Vector2[] worldBounds = new Vector2[2];
+            worldBounds[0] = mainCam.ScreenToWorldPoint(new Vector2(0, 0));
+            worldBounds[1] = mainCam.ScreenToWorldPoint(new Vector2(Screen.width, Screen.height));
+            worldSize = new Vector2(worldBounds[1].x - worldBounds[0].x, worldBounds[1].y - worldBounds[0].y);
+        }
+
         private void removeOldBodies()
         {
             if (bodies != null)
@@ -151,7 +172,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 bodies[i] = Instantiate(bodyPrefab, Vector3.zero, Quaternion.identity, planetsFolder).GetComponentInChildren<Body>();
                 bodiesRadii[i] = bodies[i].radius;
             }
-
+            
             bodiesData = generator.generate(bodiesRadii, false, worldSize, bodyCount);
             for (int i = 0; i < bodyCount; i++)
             {
@@ -177,6 +198,41 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         public void setBodyCount(float count)
         {
             bodyCount = (int)count;
+        }
+
+        // Render UI when in-game
+        void OnRenderObject()
+        {
+            if (!Application.isEditor && GameManager.instance.showOrbits)
+            {
+                GL.PushMatrix();
+                gizmosMat.SetPass(0);
+                GL.LoadOrtho();
+                GL.Begin(GL.LINES);
+                GL.Color(new Color(1, 1, 1, 1));
+                
+                GL.Vertex(new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
+                GL.Vertex(new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
+                GL.Vertex(new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
+                GL.Vertex(new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
+
+                GL.End();
+                GL.PopMatrix();
+            }
+        }
+
+        // Render UI when in the editor
+        void OnDrawGizmos()
+        {
+            if (Application.isEditor && GameManager.instance.showOrbits)
+            {
+                Gizmos.color = new Color(1, 1, 1, 1);
+
+                Gizmos.DrawLine(new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0), new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
+                Gizmos.DrawLine(new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0), new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
+                Gizmos.DrawLine(new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0), new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
+                Gizmos.DrawLine(new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0), new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
+            }
         }
     }
 }
