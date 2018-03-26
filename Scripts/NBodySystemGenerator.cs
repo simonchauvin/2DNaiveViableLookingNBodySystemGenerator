@@ -76,7 +76,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                         validEccentricity = true;
                         for (int j = 0; j <= i; j++)
                         {
-                            // TODO Fix do not work, should check orbitTilt of bodies compared to their eccentricity (similar orbittilts coupled with high eccentricity is likely to collide)
+                            // TODO Should check orbitTilt of bodies compared to their eccentricity (similar orbittilts coupled with high eccentricity is likely to collide)
                             // Cap eccentricity to prevent bodies from crashing into each other
                             newMaxEccentricity = maxEccentricity;
                             if (j != closestBodyToCenterOfMassIndex)
