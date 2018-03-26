@@ -125,7 +125,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 {
                     for (int j = i + 1; j < bodyCount; j++)
                     {
-                        if ((positions[i] - positions[j]).magnitude - (bodiesRadii[i] + bodiesRadii[i]) < minDistanceBetweenPlanetsSurfaces)
+                        if ((positions[i] - positions[j]).magnitude - (bodiesRadii[i] + bodiesRadii[j]) < minDistanceBetweenPlanetsSurfaces)
                         {
                             apart = false;
                         }
