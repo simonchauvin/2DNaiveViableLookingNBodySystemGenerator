@@ -209,12 +209,20 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 gizmosMat.SetPass(0);
                 GL.LoadOrtho();
                 GL.Begin(GL.LINES);
+
                 GL.Color(new Color(1, 1, 1, 1));
                 
+                // Draw world bounds
                 GL.Vertex(new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
                 GL.Vertex(new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
                 GL.Vertex(new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
                 GL.Vertex(new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
+
+                // Draw barycenter
+                GL.Color(new Color(1, 1, 1, 1));
+
+                // Draw center of mass
+                GL.Color(new Color(0, 0, 0, 1));
 
                 GL.End();
                 GL.PopMatrix();
@@ -228,10 +236,19 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             {
                 Gizmos.color = new Color(1, 1, 1, 1);
 
+                // Draw world bounds
                 Gizmos.DrawLine(new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0), new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
                 Gizmos.DrawLine(new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0), new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
                 Gizmos.DrawLine(new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0), new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
                 Gizmos.DrawLine(new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0), new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
+
+                // Draw barycenter
+                Gizmos.color = new Color(1, 1, 1, 1);
+                Gizmos.DrawSphere(generator.barycenter, 0.2f);
+
+                // Draw center of mass
+                Gizmos.color = new Color(0, 0, 0, 1);
+                Gizmos.DrawSphere(generator.centerOfMass, 0.2f);
             }
         }
     }
