@@ -69,6 +69,8 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                         currentCenterOfMass = (centerOfMass + positions[i] * masses[i]) / (totalMass + masses[i]);
                         barycenterToCenterOfMass = (currentCenterOfMass - ((barycenter + positions[i]) / (i + 1)));
 
+                        closestBodyToCenterOfMassIndex = getClosestBodyToCenterOfMassIndex(positions, i + 1, currentCenterOfMass, Mathf.Max(worldSize.x, worldSize.y));
+
                         // Generate a valid eccentricity based on the new center of mass created by the new body
                         // TODO Fix Go slighlty outside when n > 3
                         validEccentricity = true;
@@ -76,7 +78,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                         {
                             // TODO Fix do not work, should check orbitTilt of bodies compared to their eccentricity (similar orbittilts coupled with high eccentricity is likely to collide)
                             // Cap eccentricity to prevent bodies from crashing into each other
-                            closestBodyToCenterOfMassIndex = getClosestBodyToCenterOfMassIndex(positions, i + 1, Mathf.Max(worldSize.x, worldSize.y));
                             newMaxEccentricity = maxEccentricity;
                             if (j != closestBodyToCenterOfMassIndex)
                             {
@@ -145,7 +146,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 }
             }
 
-            closestBodyToCenterOfMassIndex = getClosestBodyToCenterOfMassIndex(positions, bodyCount, Mathf.Max(worldSize.x, worldSize.y));
+            closestBodyToCenterOfMassIndex = getClosestBodyToCenterOfMassIndex(positions, bodyCount, centerOfMass, Mathf.Max(worldSize.x, worldSize.y));
 
             centerOfMass -= barycenter; // Shift the center of mass to account for the fact that the barycenter will be on 0,0,0
 
@@ -183,7 +184,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             return bodies;
         }
 
-        private int getClosestBodyToCenterOfMassIndex(Vector2[] positions, int bodyCount, float maxDistance)
+        private int getClosestBodyToCenterOfMassIndex(Vector2[] positions, int bodyCount, Vector2 centerOfMass, float maxDistance)
         {
             int index = 0;
             float closestDistanceToCenterOfMass = maxDistance;
