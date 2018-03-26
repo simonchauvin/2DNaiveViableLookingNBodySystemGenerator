@@ -24,7 +24,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
         public virtual void Awake()
         {
-            radius = GetComponent<SpriteRenderer>().bounds.extents.x;
+            radius = GetComponent<CircleCollider2D>().radius;
         }
 
         public virtual void init(Vector2 position, float mass, float orbitalSpeed, float eccentricity, float orbitTilt, Vector2 ellipseCenter)
