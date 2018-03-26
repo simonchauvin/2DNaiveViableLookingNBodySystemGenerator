@@ -9,7 +9,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         public float minMass = 2;
         public float maxMass = 40;
         public float minDistanceBetweenPlanetsSurfaces = 3;
-        public float orbitalSpeed = 0.5f;
+        public float defaultOrbitalSpeed = 0.5f;
         public float maxEccentricity = 0.75f;
         #endregion
 
@@ -24,7 +24,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             
         }
 
-        public BodyData[] generate(float[] bodiesRadii, bool oneIsStatic, Vector2 worldSize, int bodyCount)
+        public BodyData[] generate(float[] bodiesRadii, int staticBodyCount, Vector2 worldSize, int bodyCount)
         {
             // Init
             BodyData[] bodies = new BodyData[bodyCount];
@@ -164,14 +164,27 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 centers[i] = positions[i] - apsidesLine.normalized * (apsidesLine.magnitude / (1 + eccentricities[i]));
             }
 
-            // If a static body exists it is the closest to the center of mass
+            // If only one static body exists it is the closest to the center of mass
+            int staticBodyLeft = staticBodyCount;
+            float orbitalSpeed = defaultOrbitalSpeed;
             for (int i = 0; i < bodyCount; i++)
             {
-                if (oneIsStatic)
+                orbitalSpeed = defaultOrbitalSpeed;
+                if (staticBodyLeft > 0)
                 {
-                    if (i == closestBodyToCenterOfMassIndex)
+                    if (staticBodyCount == 1)
                     {
-                        positions[i] = centers[i];
+                        if (i == closestBodyToCenterOfMassIndex)
+                        {
+                            positions[i] = centers[i];
+                            orbitalSpeed = 0;
+                            staticBodyLeft--;
+                        }
+                    }
+                    else if (staticBodyCount > 1)
+                    {
+                        orbitalSpeed = 0;
+                        staticBodyLeft--;
                     }
                 }
 

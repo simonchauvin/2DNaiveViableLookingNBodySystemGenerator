@@ -173,7 +173,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 bodiesRadii[i] = bodies[i].radius;
             }
             
-            bodiesData = generator.generate(bodiesRadii, false, worldSize, bodyCount);
+            bodiesData = generator.generate(bodiesRadii, 0, worldSize, bodyCount);
             for (int i = 0; i < bodyCount; i++)
             {
                 bodies[i].init(bodiesData[i].position, bodiesData[i].mass, bodiesData[i].orbitalSpeed, bodiesData[i].eccentricity, bodiesData[i].orbitTilt, bodiesData[i].ellipseCenter);
