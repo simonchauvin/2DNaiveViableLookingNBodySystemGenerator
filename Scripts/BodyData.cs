@@ -7,24 +7,15 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
     /// <summary>
     /// Data structure output by the generator for each body generated.
     /// </summary>
-    public class BodyData
+    public struct BodyData
     {
-        public Vector2 position { get; private set; }
-        public float mass { get; private set; }
-        public float orbitalSpeed { get; private set; }
-        public float eccentricity { get; private set; }
-        public float orbitTilt { get; private set; }
-        public Vector2 ellipseCenter { get; private set; }
-
-
-        public BodyData(Vector2 position, float mass, float orbitalSpeed, float eccentricity, float orbitTilt, Vector2 ellipseCenter)
-        {
-            this.position = position;
-            this.mass = mass;
-            this.orbitalSpeed = orbitalSpeed;
-            this.eccentricity = eccentricity;
-            this.orbitTilt = orbitTilt;
-            this.ellipseCenter = ellipseCenter;
-        }
+        public string name;
+        public Vector2 position;
+        public float mass;
+        public float orbitalSpeed;
+        public float eccentricity;
+        public float orbitTilt;
+        public Vector2 ellipseCenter;
+        public Vector2 centerOfMass;
     }
 }

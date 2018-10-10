@@ -10,194 +10,321 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         public float maxMass = 40;
         public float minDistanceBetweenPlanetsSurfaces = 3;
         public float defaultOrbitalSpeed = 0.5f;
+        public float minEccentricity = 0f;
         public float maxEccentricity = 0.75f;
         #endregion
 
-        #region VARIABLES
-        public Vector2 barycenter { get; private set; }
-        public Vector2 centerOfMass { get; private set; }
-        #endregion
+        private bool verbose;
 
 
         void Awake()
         {
             
         }
-
-        public BodyData[] generate(float[] bodiesRadii, int staticBodyCount, Vector2 worldSize, int bodyCount)
+        
+        // Set mass of the body based on the position to the center of mass
+        /// <summary>
+        /// Generate the positions, masses and orbits of the bodies specified count.
+        /// </summary>
+        /// <param name="bodyCount">The total number of bodies wanted.</param>
+        /// <param name="staticBodyCount">The number of bodies that should not move.</param>
+        /// <param name="bodiesRadii">The radius of each body wanted.</param>
+        /// <param name="worldSize">The full size of the world/screen.</param>
+        /// <param name="verbose">Whether debug logs should be displayed.</param>
+        /// <returns>An array of BodyData if the generation succeeded, null otherwise.</returns>
+        public BodyData[] Generate(int bodyCount, StaticBodyCount staticBodyCount, float[] bodiesRadii, Vector2 worldSize, bool verbose)
         {
-            // Init
+            bool hasConverged = true;
             BodyData[] bodies = new BodyData[bodyCount];
-            Vector2[] positions = new Vector2[bodyCount];
-            float[] eccentricities = new float[bodyCount];
-            Vector2[] centers = new Vector2[bodyCount];
-            float[] masses = new float[bodyCount];
-            float[] orbitTilts = new float[bodyCount];
-            float[] minEccentricities = new float[bodyCount];
-            float[] maxEccentricities = new float[bodyCount];
-            Vector2 distToBounds = worldSize * 0.5f;
-            int closestBodyToCenterOfMassIndex = 0;
+            Vector2 worldExtent = worldSize * 0.5f;
+            this.verbose = verbose;
 
-            // Generate a mass for each body
-            for (int i = 0; i < bodyCount; i++)
+            string[] names = new string[bodyCount];
+
+            Vector2[] positions = null;
+            while (positions == null)
             {
-                masses[i] = Random.Range(minMass, maxMass);
+                positions = GenerateBodiesPositions(bodyCount, worldExtent, bodiesRadii);
             }
 
-            // Find valid positions
-            Vector2 currentCenterOfMass = Vector2.zero, 
-                maxRadius = distToBounds, 
-                barycenterToCenterOfMass;
-            float maxRadiusApsidesRatio = 0,
-                minEccentricity = 0,
-                newMaxEccentricity = maxEccentricity,
-                totalMass = 0;
-            bool apart = true,
-                validEccentricity = true;
-            do
+            float[] masses = GenerateBodiesMasses(bodyCount);
+            Vector2 centerOfMass = FindCenterOfMass(bodyCount, positions, masses);
+            float[] eccentricities = new float[bodyCount];
+            Vector2[] centers = new Vector2[bodyCount];
+            float[] orbitalSpeeds = new float[bodyCount];
+            
+            for (int i = 0; i < bodyCount; i++)
             {
-                // Randomize positions and compute center of mass
-                barycenter = new Vector2(0, 0);
-                centerOfMass = new Vector3(0, 0, 0);
-                totalMass = 0;
-                for (int i = 0; i < bodyCount; i++)
+                names[i] = "Body" + i;
+                orbitalSpeeds[i] = defaultOrbitalSpeed;
+
+                // Find max semi major axis length
+                Vector2 maxOppositePosition = new Vector3(centerOfMass.x, centerOfMass.y) + Quaternion.Euler(0, 0, 180) * (positions[i] - centerOfMass);
+                if (maxOppositePosition.x < centerOfMass.x)
                 {
+                    maxOppositePosition.x -= bodiesRadii[i];
+                }
+                else
+                {
+                    maxOppositePosition.x += bodiesRadii[i];
+                }
+                float proportionOutside = GetMaxProportionOutsideScreen(maxOppositePosition, worldExtent);
+                float maxSemiMajorAxis = (maxOppositePosition - centerOfMass).magnitude;
+                if (proportionOutside > 0)
+                {
+                    maxSemiMajorAxis -= maxSemiMajorAxis * proportionOutside;
+                }
+
+                float actualMinEccentricity = ((centerOfMass - positions[i]).magnitude - maxSemiMajorAxis) / maxSemiMajorAxis; // minFocalDistance is the difference between the theoretical and the actual maxSemiMajorAxis
+                if (actualMinEccentricity > maxEccentricity)
+                {
+                    if (verbose)
+                    {
+                        Debug.LogWarning("It is impossible for the current generated system configuration to find an eccentricity for " + names[i] + " that is below the max specified");
+
+                        Debug.Log("semi major axis proportion outside: " + positions[i] + " -> " + proportionOutside);
+                        Debug.Log("max semi major axis: " + maxSemiMajorAxis);
+                    }
+
+                    hasConverged = false;
+                }
+                else
+                {
+                    if (actualMinEccentricity < minEccentricity)
+                    {
+                        actualMinEccentricity = minEccentricity;
+                    }
+
+                    // Find the fitting eccentricity and check if the ellipse fits in the screen
+                    Vector2 maxB1, maxB2;
+                    float semiMajorAxis, semiMinorAxis, focalDistance, maxB1Outside, maxB2Outside, maxBOutside;
+                    int safeWhileCount = 500;
+                    bool notEccentricEnough, noSolutionPossible;
                     do
                     {
-                        positions[i] = currentCenterOfMass + new Vector2(Random.Range(-distToBounds.x + bodiesRadii[i], distToBounds.x - bodiesRadii[i]), Random.Range(-distToBounds.y + bodiesRadii[i], distToBounds.y - bodiesRadii[i]));
+                        notEccentricEnough = false;
+                        noSolutionPossible = false;
 
-                        currentCenterOfMass = (centerOfMass + positions[i] * masses[i]) / (totalMass + masses[i]);
-                        barycenterToCenterOfMass = (currentCenterOfMass - ((barycenter + positions[i]) / (i + 1)));
+                        // Choose an eccentricity and find the relative parameters
+                        eccentricities[i] = Random.Range(actualMinEccentricity, maxEccentricity);
+                        semiMajorAxis = (centerOfMass - positions[i]).magnitude / (eccentricities[i] + 1f);
+                        focalDistance = semiMajorAxis * eccentricities[i];
+                        semiMinorAxis = Mathf.Sqrt(Mathf.Pow(semiMajorAxis, 2) - Mathf.Pow(focalDistance, 2));
+                        centers[i] = positions[i] + (centerOfMass - positions[i]).normalized * semiMajorAxis;
 
-                        closestBodyToCenterOfMassIndex = getClosestBodyToCenterOfMassIndex(positions, i + 1, currentCenterOfMass, Mathf.Max(worldSize.x, worldSize.y));
+                        // Compute vertical bounds
+                        maxB1 = new Vector3(centers[i].x, centers[i].y) + Quaternion.Euler(0, 0, 90) * Vector2.right * semiMinorAxis;
+                        maxB2 = new Vector3(centers[i].x, centers[i].y) + Quaternion.Euler(0, 0, -90) * Vector2.right * semiMinorAxis;
+                        maxB1.y += bodiesRadii[i];
+                        maxB2.y -= bodiesRadii[i];
 
-                        // Generate a valid eccentricity based on the new center of mass created by the new body
-                        // TODO Fix Go slighlty outside when n > 3
-                        validEccentricity = true;
-                        for (int j = 0; j <= i; j++)
+                        // Check vertical bounds and reduce eccentricity if needed
+                        maxB1Outside = GetMaxProportionOutsideScreen(maxB1, worldExtent);
+                        maxB2Outside = GetMaxProportionOutsideScreen(maxB2, worldExtent);
+                        maxBOutside = Mathf.Max(maxB1Outside, maxB2Outside);
+                        if (maxBOutside > 0)
                         {
-                            // TODO Should check orbitTilt of bodies compared to their eccentricity (similar orbittilts coupled with high eccentricity is likely to collide)
-                            // Cap eccentricity to prevent bodies from crashing into each other
-                            newMaxEccentricity = maxEccentricity;
-                            if (j != closestBodyToCenterOfMassIndex)
+                            if (actualMinEccentricity < maxEccentricity)
                             {
-                                float semiMajorAxis = (positions[j] - currentCenterOfMass).magnitude,
-                                    minPeriapsis = bodiesRadii[j] + bodiesRadii[closestBodyToCenterOfMassIndex],
-                                    max = 1f - (1f - (minPeriapsis / semiMajorAxis));
-                                if (max < maxEccentricity)
-                                {
-                                    newMaxEccentricity = max;
-                                }
-                            }
-                            maxEccentricities[j] = newMaxEccentricity;
-
-                            maxRadius = new Vector2(distToBounds.x - bodiesRadii[j] - Mathf.Abs(barycenterToCenterOfMass.x), distToBounds.y - bodiesRadii[j] - Mathf.Abs(barycenterToCenterOfMass.y));
-                            if (Vector2.Distance(positions[j], currentCenterOfMass) > 0)
-                            {
-                                maxRadiusApsidesRatio = (Mathf.Min(maxRadius.x, maxRadius.y)) / (positions[j] - currentCenterOfMass).magnitude;
-                                if  (maxRadiusApsidesRatio < 1f - newMaxEccentricity) // Too eccentric
-                                {
-                                    validEccentricity = false;
-                                }
-                                else
-                                {
-                                    minEccentricity = 1f - Mathf.Clamp01(maxRadiusApsidesRatio);
-                                }
+                                actualMinEccentricity = eccentricities[i]; // Converge toward the value by resetting the min value
+                                notEccentricEnough = true;
                             }
                             else
                             {
-                                minEccentricity = 0;
+                                noSolutionPossible = true;
                             }
-                            minEccentricities[j] = minEccentricity;
                         }
-                    } while (!validEccentricity);
 
-                    barycenter += positions[i]; // Non weighted barycenter
-                    centerOfMass += positions[i] * masses[i]; // Mass weight affects the center of mass
-                    totalMass += masses[i];
+                        safeWhileCount--;
+                    } while (notEccentricEnough && !noSolutionPossible && safeWhileCount > 0);
+
+                    if (safeWhileCount <= 0 || noSolutionPossible)
+                    {
+                        if (verbose)
+                        {
+                            Debug.LogWarning("In the current generated system it is not possible to find an eccentricity for " + names[i] + " that is below the max eccentricity");
+
+                            Debug.Log("maxB1outside: " + positions[i] + " -> " + maxB1Outside);
+                            Debug.Log("maxB2outside: " + positions[i] + " -> " + maxB2Outside);
+
+                            Debug.Log("eccentricity: " + eccentricities[i]);
+                            Debug.Log("center: " + centers[i]);
+                            Debug.Log("semiMajorAxis: " + semiMajorAxis);
+                            Debug.Log("semiMinorAxis: " + semiMinorAxis);
+
+                            Debug.Log("maxVerticalPos" + maxB1);
+                            Debug.Log("maxVerticalPos" + maxB2);
+                        }
+
+                        hasConverged = false;
+                    }
                 }
-                barycenter /= bodyCount;
-                centerOfMass /= totalMass;
+            }
 
-                // Check that planets are not too close to each other
-                apart = true;
+            // Set static bodies
+            if (staticBodyCount != StaticBodyCount.NONE)
+            {
+                int closestBodyToCenterOfMassIndex = GetClosestBodyToCenterOfMassIndex(bodyCount, positions, centerOfMass, Mathf.Max(worldSize.x, worldSize.y));
+                if (staticBodyCount == StaticBodyCount.ONE)
+                {
+                    positions[closestBodyToCenterOfMassIndex] = centers[closestBodyToCenterOfMassIndex];
+                    orbitalSpeeds[closestBodyToCenterOfMassIndex] = 0;
+                }
+                else
+                {
+                    for (int i = 0; i < bodyCount; i++)
+                    {
+                        orbitalSpeeds[i] = 0;
+                    }
+                }
+            }
+
+            if (hasConverged)
+            {
                 for (int i = 0; i < bodyCount; i++)
                 {
-                    for (int j = i + 1; j < bodyCount; j++)
+                    bodies[i].name = names[i];
+                    bodies[i].position = positions[i];
+                    bodies[i].mass = masses[i];
+                    bodies[i].orbitalSpeed = orbitalSpeeds[i];
+
+                    // Rotate orbit to match the apsides line
+                    if (positions[i].y < centerOfMass.y)
+                    {
+                        bodies[i].orbitTilt = -Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
+                    }
+                    else
+                    {
+                        bodies[i].orbitTilt = Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
+                    }
+
+                    bodies[i].eccentricity = eccentricities[i];
+                    bodies[i].ellipseCenter = centers[i];
+                    bodies[i].centerOfMass = centerOfMass;
+                }
+                return bodies;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private Vector2[] GenerateBodiesPositions(int bodyCount, Vector2 worldExtent, float[] bodiesRadii)
+        {
+            bool hasConverged = true;
+            Vector2[] positions = new Vector2[bodyCount];
+
+            bool apart = true;
+            Vector2 barycenter = Vector2.zero;
+            Vector2 currentBarycenter = barycenter;
+            for (int i = 0; i < bodyCount; i++)
+            {
+                int safeWhileCount = 1000;
+                do
+                {
+                    apart = true;
+                    positions[i] = currentBarycenter + new Vector2(Random.Range(-worldExtent.x + bodiesRadii[i], worldExtent.x - bodiesRadii[i]), Random.Range(-worldExtent.y + bodiesRadii[i], worldExtent.y - bodiesRadii[i]));
+                    for (int j = 0; j < i; j++)
                     {
                         if ((positions[i] - positions[j]).magnitude - (bodiesRadii[i] + bodiesRadii[j]) < minDistanceBetweenPlanetsSurfaces)
                         {
                             apart = false;
                         }
                     }
-                }
-            } while (!apart);
-
-            // Rotate orbit to match the apsides line
-            for (int i = 0; i < bodyCount; i++)
-            {
-                if (positions[i].y < centerOfMass.y)
+                    safeWhileCount--;
+                } while (!apart && safeWhileCount > 0);
+                if (safeWhileCount <= 0)
                 {
-                    orbitTilts[i] = -Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
-                }
-                else
-                {
-                    orbitTilts[i] = Vector2.Angle(Vector2.right, (positions[i] - centerOfMass).normalized);
-                }
-            }
-
-            closestBodyToCenterOfMassIndex = getClosestBodyToCenterOfMassIndex(positions, bodyCount, centerOfMass, Mathf.Max(worldSize.x, worldSize.y));
-
-            centerOfMass -= barycenter; // Shift the center of mass to account for the fact that the barycenter will be on 0,0,0
-
-            // Final configurations
-            Vector2 apsidesLine = Vector2.zero;
-            for (int i = 0; i < bodyCount; i++)
-            {
-                positions[i] -= barycenter; // Center planets on the screen
-
-                apsidesLine = positions[i] - centerOfMass;
-
-                eccentricities[i] = Random.Range(minEccentricities[i], maxEccentricities[i]);
-
-                // Shift the ellipse center so that the foci are shared at the center of mass of the system
-                centers[i] = positions[i] - apsidesLine.normalized * (apsidesLine.magnitude / (1 + eccentricities[i]));
-            }
-
-            // If only one static body exists it is the closest to the center of mass
-            int staticBodyLeft = staticBodyCount;
-            float orbitalSpeed = defaultOrbitalSpeed;
-            for (int i = 0; i < bodyCount; i++)
-            {
-                orbitalSpeed = defaultOrbitalSpeed;
-                if (staticBodyLeft > 0)
-                {
-                    if (staticBodyCount == 1)
+                    if (verbose)
                     {
-                        if (i == closestBodyToCenterOfMassIndex)
-                        {
-                            positions[i] = centers[i];
-                            orbitalSpeed = 0;
-                            staticBodyLeft--;
-                        }
+                        Debug.LogWarning("The generation of bodies positions failed.");
                     }
-                    else if (staticBodyCount > 1)
-                    {
-                        orbitalSpeed = 0;
-                        staticBodyLeft--;
-                    }
+
+                    hasConverged = false;
                 }
 
-                // Init body
-                bodies[i] = new BodyData(positions[i], masses[i], orbitalSpeed, eccentricities[i], orbitTilts[i], centers[i]);
+                barycenter += positions[i];
+                currentBarycenter = barycenter / (i + 1);
             }
+            barycenter /= bodyCount;
+            
+            if (hasConverged)
+            {
+                // Shift bodies positions so that barycenter is at 0,0
+                for (int i = 0; i < bodyCount; i++)
+                {
+                    positions[i] -= barycenter;
+                }
+                barycenter = Vector2.zero;
 
-            barycenter = Vector3.zero;
-
-            return bodies;
+                return positions;
+            }
+            else
+            {
+                return null;
+            }
         }
 
-        private int getClosestBodyToCenterOfMassIndex(Vector2[] positions, int bodyCount, Vector2 centerOfMass, float maxDistance)
+        private float[] GenerateBodiesMasses(int bodyCount)
+        {
+            float[] masses = new float[bodyCount];
+            for (int i = 0; i < bodyCount; i++)
+            {
+                masses[i] = Random.Range(minMass, maxMass);
+            }
+            return masses;
+        }
+
+        private Vector2 FindCenterOfMass(int bodyCount, Vector2[] positions, float[] masses)
+        {
+            float totalMass = 0;
+            Vector2 centerOfMass = Vector3.zero;
+            for (int i = 0; i < bodyCount; i++)
+            {
+                centerOfMass += positions[i] * masses[i];
+                totalMass += masses[i];
+            }
+            centerOfMass /= totalMass;
+            return centerOfMass;
+        }
+
+        private float GetMaxProportionOutsideScreen (Vector2 point, Vector2 worldExtent)
+        {
+            float xValue = 0, yValue = 0;
+            if (point.x > 0)
+            {
+                if (point.x > worldExtent.x)
+                {
+                    xValue = 1f - (worldExtent.x / point.x);
+                }
+            }
+            else
+            {
+                if (point.x < -worldExtent.x)
+                {
+                    xValue = 1f - (worldExtent.x / -point.x);
+                }
+            }
+            if (point.y > 0)
+            {
+                if (point.y > worldExtent.y)
+                {
+                    yValue = 1f - (worldExtent.y / point.y);
+                }
+            }
+            else
+            {
+                if (point.y < -worldExtent.y)
+                {
+                    yValue = 1f - (worldExtent.y / -point.y);
+                }
+            }
+
+            return Mathf.Max(xValue, yValue);
+        }
+
+        private int GetClosestBodyToCenterOfMassIndex(int bodyCount, Vector2[] positions, Vector2 centerOfMass, float maxDistance)
         {
             int index = 0;
             float closestDistanceToCenterOfMass = maxDistance;

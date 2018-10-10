@@ -6,16 +6,22 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 {
     public class Body : MonoBehaviour
     {
-        #region VARIABLES
-        private Vector2 worldSize;
+        #region PROPERTIES
         private float mass;
         private float orbitalSpeed;
-        private float eccentricity;
-        public float radius { get; protected set; }
-        private Vector2 ellipseCenter;
-        private Vector2[] foci;
-        public float apsidesRadius { get; private set; } // Max distance possible from the ellipse center
         private float orbitTilt;
+        private float eccentricity;
+        private Vector2 ellipseCenter;
+        public Vector2 centerOfMass;
+        #endregion
+
+        #region VARIABLES
+        private Vector2 worldSize;
+        public float radius { get; protected set; }
+        private Vector2[] foci;
+        private Vector2 apsidesLine;
+        public float semiMajorAxis { get; private set; } // Max distance possible from the ellipse center
+        private float semiMinorAxis;
         private float angle;
         private Color gizmosColor;
         private Material gizmosMat;
@@ -27,26 +33,32 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             radius = GetComponent<CircleCollider2D>().radius;
         }
 
-        public virtual void init(Vector2 position, float mass, float orbitalSpeed, float eccentricity, float orbitTilt, Vector2 ellipseCenter)
+        public virtual void Init(BodyData bodyData)
         {
             // Init
+            gameObject.name = bodyData.name;
+            Vector2 position = bodyData.position;
             transform.position = position;
-            this.mass = mass;
-            this.orbitalSpeed = orbitalSpeed;
-            this.eccentricity = eccentricity;
-            this.orbitTilt = orbitTilt;
-            this.ellipseCenter = ellipseCenter;
+            mass = bodyData.mass;
+            orbitalSpeed = bodyData.orbitalSpeed;
+            eccentricity = bodyData.eccentricity;
+            orbitTilt = bodyData.orbitTilt;
+            ellipseCenter = bodyData.ellipseCenter;
+            centerOfMass = bodyData.centerOfMass;
             angle = 0;
-            apsidesRadius = (ellipseCenter - position).magnitude;
+            semiMajorAxis = (ellipseCenter - position).magnitude;
             worldSize = GameManager.instance.worldSize;
 
             // Find relative foci points
             foci = new Vector2[] { Vector2.zero, Vector2.zero };
-            foci[0] = Quaternion.Euler(0, 0, orbitTilt) * -new Vector2(eccentricity * apsidesRadius, 0);
-            foci[1] = Quaternion.Euler(0, 0, orbitTilt) * new Vector2(eccentricity * apsidesRadius, 0);
+            foci[0] = ellipseCenter - (position - ellipseCenter).normalized * (eccentricity * semiMajorAxis);
+            foci[1] = ellipseCenter + (position - ellipseCenter).normalized * (eccentricity * semiMajorAxis);
+
+            apsidesLine = (ellipseCenter - position).normalized;
+            semiMinorAxis = Mathf.Sqrt(Mathf.Pow(semiMajorAxis, 2) - Mathf.Pow((ellipseCenter - foci[0]).magnitude, 2));
 
             // UI
-            this.gizmosColor = Random.ColorHSV();
+            this.gizmosColor = Random.ColorHSV(0, 1, 0, 1, 0.5f, 1);
 
             // Unity has a built-in shader that is useful for drawing
             // simple colored things.
@@ -75,7 +87,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         // Render UI when in-game
         void OnRenderObject ()
         {
-            if (!Application.isEditor && GameManager.instance.showOrbits)
+            if (!Application.isEditor)
             {
                 GL.PushMatrix();
                 gizmosMat.SetPass(0);
@@ -83,22 +95,24 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 GL.Begin(GL.LINES);
                 GL.Color(new Color(gizmosColor.r, gizmosColor.g, gizmosColor.b, 0.5f));
 
-                // Take zoom into account
-                Vector2 scaledWorldSize = new Vector2(worldSize.x + (GameManager.instance.scale * GameManager.instance.aspect) * 2f, worldSize.y + (GameManager.instance.scale * 2f));
-
-                // Draw orbit
-                float lastAngle = 0;
-                Vector2 prev = computeFixedOrbitPosition(lastAngle), next;
-                for (int i = 0; i < 100; i++)
+                if (GameManager.instance.showOrbits)
                 {
-                    lastAngle += (Mathf.PI * 2f) / 100f;
+                    // Take zoom into account
+                    Vector2 scaledWorldSize = new Vector2(worldSize.x + (GameManager.instance.scale * GameManager.instance.aspect) * 2f, worldSize.y + (GameManager.instance.scale * 2f));
 
-                    next = computeFixedOrbitPosition(lastAngle);
+                    float lastAngle = 0;
+                    Vector2 prev = computeFixedOrbitPosition(lastAngle), next;
+                    for (int i = 0; i < 100; i++)
+                    {
+                        lastAngle += (Mathf.PI * 2f) / 100f;
 
-                    GL.Vertex(new Vector3((prev.x + scaledWorldSize.x * 0.5f) / scaledWorldSize.x, (prev.y + scaledWorldSize.y * 0.5f) / scaledWorldSize.y));
-                    GL.Vertex(new Vector3((next.x + scaledWorldSize.x * 0.5f) / scaledWorldSize.x, (next.y + scaledWorldSize.y * 0.5f) / scaledWorldSize.y));
+                        next = computeFixedOrbitPosition(lastAngle);
 
-                    prev = next;
+                        GL.Vertex(new Vector3((prev.x + scaledWorldSize.x * 0.5f) / scaledWorldSize.x, (prev.y + scaledWorldSize.y * 0.5f) / scaledWorldSize.y));
+                        GL.Vertex(new Vector3((next.x + scaledWorldSize.x * 0.5f) / scaledWorldSize.x, (next.y + scaledWorldSize.y * 0.5f) / scaledWorldSize.y));
+
+                        prev = next;
+                    }
                 }
 
                 GL.End();
@@ -109,54 +123,57 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         // Render UI when in the editor
         void OnDrawGizmos()
         {
-            if (Application.isEditor && GameManager.instance.showOrbits)
+            if (Application.isEditor)
             {
                 Gizmos.color = new Color(gizmosColor.r, gizmosColor.g, gizmosColor.b, 0.5f);
 
-                // Draw point around which the body rotates
-                Gizmos.DrawSphere(ellipseCenter, 0.25f);
-
-                // Draw foci
-                Gizmos.DrawSphere(ellipseCenter + foci[0], 0.1f);
-                Gizmos.DrawSphere(ellipseCenter + foci[1], 0.1f);
-
-                // Draw orbit
-                float lastAngle = 0;
-                Vector2 prev = computeFixedOrbitPosition(lastAngle), next;
-                for (int i = 0; i < 100; i++)
+                // Draw debug
+                if (GameManager.instance.showDebug)
                 {
-                    lastAngle += (Mathf.PI * 2f) / 100f;
+                    // Draw point around which the body rotates
+                    Gizmos.DrawSphere(ellipseCenter, 0.25f);
 
-                    next = computeFixedOrbitPosition(lastAngle);
+                    // Draw foci
+                    Gizmos.DrawSphere(foci[0], 0.1f);
+                    Gizmos.DrawSphere(foci[1], 0.1f);
 
-                    Gizmos.DrawLine(prev, next);
+                    Gizmos.DrawLine(ellipseCenter, ellipseCenter + semiMajorAxis * apsidesLine);
+                    Gizmos.DrawLine(ellipseCenter, (Vector3)ellipseCenter + semiMajorAxis * (Quaternion.Euler(0, 0, 180) * apsidesLine));
+                    Gizmos.DrawLine(ellipseCenter, (Vector3)ellipseCenter + semiMinorAxis * (Quaternion.Euler(0, 0, 90) * apsidesLine));
+                    Gizmos.DrawLine(ellipseCenter, (Vector3)ellipseCenter + semiMinorAxis * (Quaternion.Euler(0, 0, -90) * apsidesLine));
+                }
 
-                    prev = next;
+                if (GameManager.instance.showOrbits)
+                {
+                    float lastAngle = 0;
+                    Vector2 prev = computeFixedOrbitPosition(lastAngle), next;
+                    for (int i = 0; i < 100; i++)
+                    {
+                        lastAngle += (Mathf.PI * 2f) / 100f;
+
+                        next = computeFixedOrbitPosition(lastAngle);
+
+                        Gizmos.DrawLine(prev, next);
+
+                        prev = next;
+                    }
                 }
             }
         }
 
-        public Vector2 computeFixedOrbitVelocity(float angle)
-        {
-            return new Vector2(Mathf.Cos(angle), (1f - eccentricity) * Mathf.Sin(angle));
-        }
-
         public Vector2 computeFixedOrbitPosition(float angle)
         {
-            return (Vector3)ellipseCenter + apsidesRadius * (Quaternion.Euler(0, 0, orbitTilt) * computeFixedOrbitVelocity(angle));
+            return (Vector3)ellipseCenter + (Quaternion.Euler(0, 0, orbitTilt) * new Vector2(semiMajorAxis * Mathf.Cos(angle), semiMinorAxis * Mathf.Sin(angle)));
         }
 
         public void updateFixedOrbitPosition()
         {
-            // Update angle
-            angle += orbitalSpeed * Time.deltaTime;
+            angle += orbitalSpeed * Time.deltaTime; // Update angle
             if (angle > Mathf.PI * 2f)
             {
                 angle = 0;
             }
-
-            // Update position
-            transform.position = computeFixedOrbitPosition(angle);
+            transform.position = computeFixedOrbitPosition(angle); // Update position
         }
     }
 }

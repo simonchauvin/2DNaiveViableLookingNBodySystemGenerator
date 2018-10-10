@@ -23,6 +23,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
         public Transform bodyPrefab;
         public string planetsFolderName = "Planets";
+        public bool verbose;
 
         private Transform planetsFolder;
         private NBodySystemGenerator generator;
@@ -31,13 +32,16 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         private Camera mainCam;
         private Canvas canvas;
 
+        private Vector2 centerOfMass;
         private int bodyCount;
+        private StaticBodyCount staticBodyCount;
         private bool generating;
         private bool simulating;
         public Vector2 worldSize { get; private set; }
         public float aspect { get; private set; }
         public float scale { get; private set; }
         public bool showOrbits { get; private set; }
+        public bool showDebug { get; private set; }
         private Material gizmosMat;
 
 
@@ -48,13 +52,16 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             canvas = GameObject.FindObjectOfType<Canvas>();
 
             bodyCount = (int)canvas.GetComponentInChildren<Slider>().value;
+            
+            
             generating = false;
             simulating = false;
 
             aspect = mainCam.aspect;
             scale = 0;
             showOrbits = true;
-            findWorldSize();
+            showDebug = false;
+            FindWorldSize();
 
             // Unity has a built-in shader that is useful for drawing
             // simple colored things.
@@ -81,10 +88,10 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
             else if (generating)
             {
-                findWorldSize();
+                FindWorldSize();
 
-                removeOldBodies();
-                createNewBodies();
+                RemoveOldBodies();
+                CreateNewBodies();
             }
 
             if (Input.GetKeyDown(KeyCode.Return))
@@ -119,6 +126,11 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 showOrbits = !showOrbits;
             }
 
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                showDebug = !showDebug;
+            }
+
             if (Input.GetKey(KeyCode.P))
             {
                 if (Time.timeScale + 0.1f < 100)
@@ -141,7 +153,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
         }
 
-        private void findWorldSize()
+        private void FindWorldSize()
         {
             Vector2[] worldBounds = new Vector2[2];
             worldBounds[0] = mainCam.ScreenToWorldPoint(new Vector2(0, 0));
@@ -149,7 +161,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             worldSize = new Vector2(worldBounds[1].x - worldBounds[0].x, worldBounds[1].y - worldBounds[0].y);
         }
 
-        private void removeOldBodies()
+        private void RemoveOldBodies()
         {
             if (bodies != null)
             {
@@ -163,7 +175,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
         }
 
-        private void createNewBodies()
+        private void CreateNewBodies()
         {
             bodies = new Body[bodyCount];
             float[] bodiesRadii = new float[bodyCount];
@@ -172,11 +184,27 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 bodies[i] = Instantiate(bodyPrefab, Vector3.zero, Quaternion.identity, planetsFolder).GetComponentInChildren<Body>();
                 bodiesRadii[i] = bodies[i].radius;
             }
-            
-            bodiesData = generator.generate(bodiesRadii, 0, worldSize, bodyCount);
-            for (int i = 0; i < bodyCount; i++)
+
+            int generationCount = 1, safeWhileCount = 500;
+            bodiesData = null;
+            while (bodiesData == null && safeWhileCount > 0)
             {
-                bodies[i].init(bodiesData[i].position, bodiesData[i].mass, bodiesData[i].orbitalSpeed, bodiesData[i].eccentricity, bodiesData[i].orbitTilt, bodiesData[i].ellipseCenter);
+                if (verbose)
+                {
+                    Debug.Log("Generation " + generationCount);
+                }
+                bodiesData = generator.Generate(bodyCount, staticBodyCount, bodiesRadii, worldSize, verbose);
+                safeWhileCount--;
+                generationCount++;
+            }
+            if (bodiesData != null)
+            {
+                centerOfMass = bodiesData[0].centerOfMass;
+
+                for (int i = 0; i < bodyCount; i++)
+                {
+                    bodies[i].Init(bodiesData[i]);
+                }
             }
             generating = false;
         }
@@ -195,9 +223,28 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
         }
 
-        public void setBodyCount(float count)
+        public void SetBodyCount(float count)
         {
             bodyCount = (int)count;
+        }
+
+        public void SetStaticBodyCount(int value)
+        {
+            staticBodyCount = GetStaticBodyCount(value);
+        }
+
+        private StaticBodyCount GetStaticBodyCount(int value)
+        {
+            switch (value)
+            {
+                case 0:
+                    return StaticBodyCount.NONE;
+                case 1:
+                    return StaticBodyCount.ONE;
+                case 2:
+                    return StaticBodyCount.ALL;
+            }
+            return StaticBodyCount.NONE;
         }
 
         // Render UI when in-game
@@ -217,9 +264,6 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 GL.Vertex(new Vector3(0f + worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
                 GL.Vertex(new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
                 GL.Vertex(new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
-
-                // Draw barycenter
-                GL.Color(new Color(1, 1, 1, 1));
 
                 // Draw center of mass
                 GL.Color(new Color(0, 0, 0, 1));
@@ -242,13 +286,9 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                 Gizmos.DrawLine(new Vector3(0f + worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0), new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0));
                 Gizmos.DrawLine(new Vector3(0f - worldSize.x * 0.5f, 0f + worldSize.y * 0.5f, 0), new Vector3(0f - worldSize.x * 0.5f, 0f - worldSize.y * 0.5f, 0));
 
-                // Draw barycenter
-                Gizmos.color = new Color(1, 1, 1, 1);
-                Gizmos.DrawSphere(generator.barycenter, 0.2f);
-
                 // Draw center of mass
                 Gizmos.color = new Color(0, 0, 0, 1);
-                Gizmos.DrawSphere(generator.centerOfMass, 0.2f);
+                Gizmos.DrawSphere(centerOfMass, 0.2f);
             }
         }
     }
