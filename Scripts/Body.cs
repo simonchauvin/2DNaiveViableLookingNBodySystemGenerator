@@ -8,20 +8,23 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
     {
         #region PROPERTIES
         private float mass;
-        private float orbitalSpeed;
+        private float minOrbitalSpeed;
+        private float maxOrbitalSpeed;
         private float orbitTilt;
         private float eccentricity;
-        private Vector2 ellipseCenter;
-        public Vector2 centerOfMass;
+        private Vector3 ellipseCenter;
+        public Vector3 centerOfMass;
         #endregion
 
         #region VARIABLES
-        private Vector2 worldSize;
+        private Vector3 worldSize;
         public float radius { get; protected set; }
-        private Vector2[] foci;
-        private Vector2 apsidesLine;
-        public float semiMajorAxis { get; private set; } // Max distance possible from the ellipse center
+        private Vector3[] foci;
+        private Vector3 apsidesLine;
+        public float semiMajorAxis;
         private float semiMinorAxis;
+        private float maxDistanceToCenterOfMass;
+        private float minDistanceToCenterOfMass;
         private float angle;
         private Color gizmosColor;
         private Material gizmosMat;
@@ -37,20 +40,23 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         {
             // Init
             gameObject.name = bodyData.name;
-            Vector2 position = bodyData.position;
+            Vector3 position = bodyData.position;
             transform.position = position;
             mass = bodyData.mass;
-            orbitalSpeed = bodyData.orbitalSpeed;
+            minOrbitalSpeed = bodyData.orbitalSpeed;
+            maxOrbitalSpeed = minOrbitalSpeed * 2f;
             eccentricity = bodyData.eccentricity;
             orbitTilt = bodyData.orbitTilt;
             ellipseCenter = bodyData.ellipseCenter;
             centerOfMass = bodyData.centerOfMass;
             angle = 0;
             semiMajorAxis = (ellipseCenter - position).magnitude;
+            maxDistanceToCenterOfMass = semiMajorAxis + (ellipseCenter - centerOfMass).magnitude;
+            minDistanceToCenterOfMass = semiMajorAxis - (ellipseCenter - centerOfMass).magnitude;
             worldSize = GameManager.instance.worldSize;
 
             // Find relative foci points
-            foci = new Vector2[] { Vector2.zero, Vector2.zero };
+            foci = new Vector3[] { Vector3.zero, Vector3.zero };
             foci[0] = ellipseCenter - (position - ellipseCenter).normalized * (eccentricity * semiMajorAxis);
             foci[1] = ellipseCenter + (position - ellipseCenter).normalized * (eccentricity * semiMajorAxis);
 
@@ -138,9 +144,9 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
                     Gizmos.DrawSphere(foci[1], 0.1f);
 
                     Gizmos.DrawLine(ellipseCenter, ellipseCenter + semiMajorAxis * apsidesLine);
-                    Gizmos.DrawLine(ellipseCenter, (Vector3)ellipseCenter + semiMajorAxis * (Quaternion.Euler(0, 0, 180) * apsidesLine));
-                    Gizmos.DrawLine(ellipseCenter, (Vector3)ellipseCenter + semiMinorAxis * (Quaternion.Euler(0, 0, 90) * apsidesLine));
-                    Gizmos.DrawLine(ellipseCenter, (Vector3)ellipseCenter + semiMinorAxis * (Quaternion.Euler(0, 0, -90) * apsidesLine));
+                    Gizmos.DrawLine(ellipseCenter, ellipseCenter + semiMajorAxis * (Quaternion.Euler(0, 0, 180) * apsidesLine));
+                    Gizmos.DrawLine(ellipseCenter, ellipseCenter + semiMinorAxis * (Quaternion.Euler(0, 0, 90) * apsidesLine));
+                    Gizmos.DrawLine(ellipseCenter, ellipseCenter + semiMinorAxis * (Quaternion.Euler(0, 0, -90) * apsidesLine));
                 }
 
                 if (GameManager.instance.showOrbits)
@@ -161,14 +167,17 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
             }
         }
 
-        public Vector2 computeFixedOrbitPosition(float angle)
+        public Vector3 computeFixedOrbitPosition(float angle)
         {
-            return (Vector3)ellipseCenter + (Quaternion.Euler(0, 0, orbitTilt) * new Vector2(semiMajorAxis * Mathf.Cos(angle), semiMinorAxis * Mathf.Sin(angle)));
+            return ellipseCenter + (Quaternion.Euler(0, 0, orbitTilt) * new Vector3(semiMajorAxis * Mathf.Cos(angle), semiMinorAxis * Mathf.Sin(angle)));
         }
 
         public void updateFixedOrbitPosition()
         {
-            angle += orbitalSpeed * Time.deltaTime; // Update angle
+            // Increase orbital speed as it get closer to the center of mass
+            float currentOrbitalSpeed = Mathf.Lerp(maxOrbitalSpeed, minOrbitalSpeed, ((transform.position - centerOfMass).magnitude - minDistanceToCenterOfMass) / (maxDistanceToCenterOfMass - minDistanceToCenterOfMass));
+
+            angle += currentOrbitalSpeed * Time.deltaTime; // Update angle
             if (angle > Mathf.PI * 2f)
             {
                 angle = 0;
