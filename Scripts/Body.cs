@@ -21,7 +21,7 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
         public float radius { get; protected set; }
         private Vector3[] foci;
         private Vector3 apsidesLine;
-        public float semiMajorAxis;
+        private float semiMajorAxis;
         private float semiMinorAxis;
         private float maxDistanceToCenterOfMass;
         private float minDistanceToCenterOfMass;
@@ -174,15 +174,18 @@ namespace NaiveViableLooking2DPlanetarySystemGenerator
 
         public void updateFixedOrbitPosition()
         {
-            // Increase orbital speed as it get closer to the center of mass
-            float currentOrbitalSpeed = Mathf.Lerp(maxOrbitalSpeed, minOrbitalSpeed, ((transform.position - centerOfMass).magnitude - minDistanceToCenterOfMass) / (maxDistanceToCenterOfMass - minDistanceToCenterOfMass));
-
-            angle += currentOrbitalSpeed * Time.deltaTime; // Update angle
-            if (angle > Mathf.PI * 2f)
+            if (minOrbitalSpeed > 0)
             {
-                angle = 0;
+                // Increase orbital speed as it get closer to the center of mass
+                float currentOrbitalSpeed = Mathf.Lerp(maxOrbitalSpeed, minOrbitalSpeed, ((transform.position - centerOfMass).magnitude - minDistanceToCenterOfMass) / (maxDistanceToCenterOfMass - minDistanceToCenterOfMass));
+
+                angle += currentOrbitalSpeed * Time.deltaTime; // Update angle
+                if (angle > Mathf.PI * 2f)
+                {
+                    angle = 0;
+                }
+                transform.position = computeFixedOrbitPosition(angle); // Update position
             }
-            transform.position = computeFixedOrbitPosition(angle); // Update position
         }
     }
 }
